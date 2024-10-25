@@ -1,0 +1,47 @@
+from flask import Flask, request, jsonify
+import os
+import uuid
+
+class FileUploader:
+    def __init__(self, upload_folder):
+        self.upload_folder = upload_folder
+        os.makedirs(self.upload_folder, exist_ok=True)
+
+    def upload_file(self, file, user_defined_filename):
+        # Validate filename (optional)
+        if user_defined_filename.strip() == "":
+            return {"error": "Filename cannot be empty"}, 400
+
+        # Ensure the file has a .pdf extension
+        if not user_defined_filename.lower().endswith('.pdf'):
+            return {"error": "Only PDF files are allowed"}, 400
+
+        # Generate a unique filename by appending a UUID
+        unique_filename = f"{os.path.splitext(user_defined_filename)[0]}_{uuid.uuid4().hex}.pdf"
+        file_path = os.path.join(self.upload_folder, unique_filename)
+
+        # Save file to the specified path
+        file.save(file_path)
+
+        return {"message": f"File successfully uploaded as {unique_filename}"}, 200
+
+
+app = Flask(__name__)
+uploader = FileUploader(upload_folder="files")
+
+@app.route('/upload_file', methods=['POST'])
+def upload_file():
+    # Check if file and filename were submitted
+    if 'file' not in request.files or 'filename' not in request.form:
+        return jsonify({"error": "No file or filename provided"}), 400
+    
+    file = request.files['file']
+    user_defined_filename = request.form['filename']
+
+    # Use the uploader object to handle the upload
+    response, status_code = uploader.upload_file(file, user_defined_filename)
+    
+    return jsonify(response), status_code
+
+if __name__ == '__main__':
+    app.run(debug=True)
